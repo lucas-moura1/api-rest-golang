@@ -1,0 +1,26 @@
+version: "3"
+
+services:
+    user_api:
+        build: .
+        command: go run main.go
+        volumes:
+            - .:/usr/app/
+        environment:
+            DATABASE_NAME: "user_api"
+            DATABASE_DOMAIN: "mongodb://user_mongo"
+            APP_ENV: local
+            HTTP_PORT: 9999
+            LOGGER_LEVEL: info
+        ports:
+            - "9999:9999"
+        depends_on:
+            - user_mongo
+
+    user_mongo:
+        container_name: mongodb-user-api
+        image: "mongo"
+        volumes:
+            - ./data:/data/db
+        ports:
+            - "27017:27017"
