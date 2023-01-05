@@ -29,15 +29,19 @@ func NewUserController(uuc uuc.UserUseCase) UserController {
     return &userGetUsers{uuc}
 }
 
+type responseError struct {
+    Err string  `json:"error"`
+}
+
 func(ugu *userGetUsers) GetUsers(w http.ResponseWriter, r *http.Request) {
     users, err := ugu.userCaseUse.GetAll()
-
     if err != nil {
-        log.Print("Deu ruim :", err)
+        log.Print("Error:", err)
+        w.WriteHeader(400)
+        return
     }
 
     responseJson, err := json.Marshal(users)
-
     if err != nil {
         log.Print("Error: ", err)
     }
@@ -47,46 +51,49 @@ func(ugu *userGetUsers) GetUsers(w http.ResponseWriter, r *http.Request) {
 }
 
 func(ugu *userGetUsers) GetUserById(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Content-Type", "application/json")
     userId := chi.URLParam(r, "userId")
-    if userId == "" {
-        w.WriteHeader(409)
-        w.Write([]byte("Insert userId"))
-    }
 
     user, err := ugu.userCaseUse.GetById(userId)
-
     if err != nil {
         if strings.Contains(err.Error(), "no documents") {
             w.WriteHeader(404)
+            respJson, _ := json.Marshal(responseError{Err: "User not found"})
+            w.Write(respJson)
+            return
         }
-        log.Print("Error: ", err)
         w.WriteHeader(400)
+        return
     }
 
     responseJson, err := json.Marshal(user)
-
     if err != nil {
         log.Print("Error: ", err)
     }
 
-    w.Header().Set("Content-Type", "application/json")
     w.Write(responseJson)
 }
 
 func(ugu *userGetUsers) CreateUser(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Content-Type", "application/json")
     body, err := io.ReadAll(r.Body)
     if err != nil {
-        log.Print(err)
+        log.Print("Error:", err)
         w.WriteHeader(409)
-        w.Write([]byte( "Error to readind data"))
+        respJson, _ := json.Marshal(responseError{Err: "Error to reading data"})
+        w.Write(respJson)
+        return
 	}
 
-    var newUser models.User
+    var newUser models.UserInput
 	json.Unmarshal(body, &newUser)
 
     user, err := ugu.userCaseUse.Create(newUser)
     if err != nil {
-        log.Print("Error: ", err)
+        w.WriteHeader(409)
+        respJson, _ := json.Marshal(responseError{Err: err.Error()})
+        w.Write(respJson)
+        return
     }
 
     responseJson, err := json.Marshal(user)
@@ -94,30 +101,37 @@ func(ugu *userGetUsers) CreateUser(w http.ResponseWriter, r *http.Request) {
         log.Print("Error: ", err)
     }
 
-    w.Header().Set("Content-Type", "application/json")
     w.Write(responseJson)
 }
 
 func(ugu *userGetUsers) UpdateUser(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Content-Type", "application/json")
     userId := chi.URLParam(r, "userId")
     if userId == "" {
         w.WriteHeader(409)
-        w.Write([]byte("Insert userId"))
+        respJson, _ := json.Marshal(responseError{Err: "Insert userId"})
+        w.Write(respJson)
+        return
     }
 
     body, err := io.ReadAll(r.Body)
     if err != nil {
         log.Print(err)
         w.WriteHeader(409)
-        w.Write([]byte( "Error to readind data"))
+        respJson, _ := json.Marshal(responseError{Err:"Error to readind data"})
+        w.Write(respJson)
+        return
 	}
 
-    var updateUser models.User
+    var updateUser models.UserInput
 	json.Unmarshal(body, &updateUser)
 
     result, err := ugu.userCaseUse.Update(userId, updateUser)
     if err != nil {
-        log.Fatal("Error: ", err)
+        w.WriteHeader(409)
+        respJson, _ := json.Marshal(responseError{Err: err.Error()})
+        w.Write(respJson)
+        return
     }
 
     type updatedResponse struct{ UpdatedDocument int `json:"updatedDocument"`}
@@ -126,30 +140,24 @@ func(ugu *userGetUsers) UpdateUser(w http.ResponseWriter, r *http.Request) {
         log.Print("Error: ", err)
     }
 
-    w.Header().Set("Content-Type", "application/json")
     w.Write(responseJson)
 }
 
 func(ugu *userGetUsers) DeleteUser(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Content-Type", "application/json")
     userId := chi.URLParam(r, "userId")
-    if userId == "" {
-        w.WriteHeader(409)
-        w.Write([]byte("Insert userId"))
-    }
 
     result, err := ugu.userCaseUse.DeleteById(userId)
-
     if err != nil {
-        log.Print("Error: ", err)
         w.WriteHeader(400)
+        return
     }
 
-    type deletedResponse struct{ DeletedDocument int `json:"deletedDocument"`}
+    type deletedResponse struct{ DeletedDocument int `json:"deletedDocument"` }
     responseJson, err := json.Marshal(deletedResponse{DeletedDocument: result})
     if err != nil {
         log.Print("Error: ", err)
     }
 
-    w.Header().Set("Content-Type", "application/json")
     w.Write(responseJson)
 }

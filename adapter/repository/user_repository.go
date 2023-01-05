@@ -81,8 +81,9 @@ func(ur *userRepository) Update(id string, u models.UserModel) (int, error) {
     oid, _ := primitive.ObjectIDFromHex(id)
 
     query := bson.M{"_id": oid}
+    update := bson.M{"$set": u}
 
-    result, err := ur.db.UpdateOne(ur.ctx, query, bson.M{"$set": u})
+    result, err := ur.db.UpdateOne(ur.ctx, query, update)
     if err != nil {
         log.Print("Error: ", err)
         return 0, nil
