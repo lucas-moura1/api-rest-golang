@@ -4,6 +4,7 @@ import (
 	"time"
 	"user-api/adapter/repository"
 	models "user-api/domain/model"
+	validator "user-api/domain/validation"
 	pw "user-api/utils"
 )
 
@@ -15,8 +16,8 @@ type userUseCase struct {
 type UserUseCase interface {
     GetAll() ([]models.DBUserResponse, error)
     GetById(id string) (*models.DBUserResponse, error)
-    Create(u models.User) (*models.DBUserResponse, error)
-    Update(id string, u models.User) (int, error)
+    Create(u models.UserInput) (*models.DBUserResponse, error)
+    Update(id string, u models.UserInput) (int, error)
     DeleteById(id string) (int, error)
 }
 
@@ -35,6 +36,11 @@ func(uuc userUseCase) GetAll() ([]models.DBUserResponse, error) {
 }
 
 func(uuc userUseCase) GetById(id string) (*models.DBUserResponse, error) {
+    err := validator.ValidateUserId(id)
+    if err != nil {
+        return nil, err
+    }
+
     user, err := uuc.userRepository.FindUserById(id)
 
     if err != nil {
@@ -44,7 +50,12 @@ func(uuc userUseCase) GetById(id string) (*models.DBUserResponse, error) {
     return user, nil
 }
 
-func(uuc *userUseCase) Create(u models.User) (*models.DBUserResponse, error) {
+func(uuc *userUseCase) Create(u models.UserInput) (*models.DBUserResponse, error) {
+    err := validator.ValidateUser(u)
+    if err != nil {
+        return nil, err
+    }
+
     user := models.UserModel{
         CreatedAt: time.Now(),
         UpdatedAt: time.Now(),
@@ -67,7 +78,17 @@ func(uuc *userUseCase) Create(u models.User) (*models.DBUserResponse, error) {
     return newUser, nil
 }
 
-func(uuc *userUseCase) Update(id string, u models.User) (int, error) {
+func(uuc *userUseCase) Update(id string, u models.UserInput) (int, error) {
+    err := validator.ValidateUserId(id)
+    if err != nil {
+        return 0, err
+    }
+
+    err = validator.ValidateUser(u)
+    if err != nil {
+        return 0, err
+    }
+
     hashedPassword, err := pw.HashPassword(u.Password)
     if err != nil {
         return 0, err
@@ -90,6 +111,11 @@ func(uuc *userUseCase) Update(id string, u models.User) (int, error) {
 }
 
 func(uuc userUseCase) DeleteById(id string) (int, error) {
+    err := validator.ValidateUserId(id)
+    if err != nil {
+        return 0, err
+    }
+
     result, err := uuc.userRepository.Delete(id)
 
     if err != nil {
